@@ -1,5 +1,4 @@
-# Use a slim JDK 20 image based on Eclipse Temurin
-FROM eclipse-temurin:20-jdk-alpine
+FROM openjdk:21-jdk-slim
 
 ARG JAR_FILE=target/*.jar
 # Copy the application jar (adjust based on your project structure)

@@ -11,7 +11,6 @@ import java.time.Instant;
 @AllArgsConstructor
 public class UserDto {
     private Long iduser;
-    private String kodeuser;
     private String username;
     private String password;
     private String role;

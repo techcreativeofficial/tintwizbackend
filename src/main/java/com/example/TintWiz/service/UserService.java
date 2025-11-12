@@ -39,7 +39,6 @@ public class UserService {
             log.info("Inside Create Account {}", userDto);
             User user = new User();
 
-            user.setKodeuser(userDto.getKodeuser());
             user.setUsername(userDto.getUsername());
             String rawPassword = userDto.getPassword();
 //            String encodedPassword = passwordEncoder.encode(rawPassword);
@@ -66,7 +65,6 @@ public class UserService {
             }
             User user = optionalUser.get();
 
-            user.setKodeuser(userDto.getKodeuser());
             user.setUsername(userDto.getUsername());
 
             String rawPassword = userDto.getPassword();
@@ -114,7 +112,6 @@ public class UserService {
     public UserDto mapUserToUserDto(User user) {
         UserDto userDto = new UserDto();
         userDto.setIduser(user.getIduser());
-        userDto.setKodeuser(user.getKodeuser());
         userDto.setUsername(user.getUsername());
         userDto.setPassword(user.getPassword());
         userDto.setRole(user.getRole());
@@ -219,7 +216,6 @@ public class UserService {
                 .map(user -> {
                     UserDto userDto = new UserDto();
                     userDto.setIduser(user.getIduser());
-                    userDto.setKodeuser(user.getKodeuser());
                     userDto.setUsername(user.getUsername());
                     userDto.setPassword(user.getPassword());
                     userDto.setRole(user.getRole());

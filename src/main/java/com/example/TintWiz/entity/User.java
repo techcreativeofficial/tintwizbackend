@@ -1,12 +1,9 @@
 package com.example.TintWiz.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @Builder
@@ -16,10 +13,10 @@ import java.time.Instant;
 @Table(name = "users")
 public class User {
     @Id
-    @SequenceGenerator(name = "userr_sequence",sequenceName = "userr_sequence",allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.SEQUENCE,generator = "userr_sequence")
+    @SequenceGenerator(name = "user_sequence", sequenceName = "user_sequence", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "user_sequence")
     private Long iduser;
-    private String kodeuser;
+
     private String username;
     private String password;
     private String role;
@@ -27,4 +24,10 @@ public class User {
     private Instant created;
 
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Product> products;
+
+
+    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL)
+    private List<Articles> articles;
 }

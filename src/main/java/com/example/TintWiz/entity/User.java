@@ -16,9 +16,13 @@ public class User {
     @SequenceGenerator(name = "user_sequence", sequenceName = "user_sequence", allocationSize = 1)
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "user_sequence")
     private Long iduser;
-
+    private String email;
     private String username;
+    private String fullname;
     private String password;
+    private Integer phone_number;
+    @Column(columnDefinition = "text")
+    private String profile_picture;
     private String role;
     private Boolean status;
     private Instant created;

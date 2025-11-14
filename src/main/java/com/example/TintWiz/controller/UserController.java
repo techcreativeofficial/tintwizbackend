@@ -51,19 +51,31 @@ public class UserController {
         }
     }
 
+    @PostMapping(path = "/login")
+    public ResponseEntity<Object>login(@RequestBody AuthResponse authResponse){
+        try {
+            return userService.login(authResponse);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/findById/{id}")
     public UserDto fetchUserByIduser(@PathVariable("id") Long id) throws AllException {
         return userService.fetchUserDtoByIduser(id);
     }
-//    @PostMapping("/changepassword")
-//    public ResponseEntity<Object>changePassword(@RequestBody ChangePassword changePassword){
-//        try {
-//            return userService.changePasswords(changePassword);
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-//        }
-//    }
+
+   @PostMapping("/changepassword")
+   public ResponseEntity<Object>changePassword(@RequestBody ChangePassword changePassword){
+       try {
+           return userService.changePasswords(changePassword);
+       } catch (Exception ex) {
+           ex.printStackTrace();
+           return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+       }
+   }
+
     @PostMapping("/changeusername")
     public ResponseEntity<Object>changeUser(@RequestBody ChangeUsername changeUsername){
         try {
@@ -77,8 +89,8 @@ public class UserController {
     public UserDto fetchUserByUsername(@PathVariable("username") String username) throws AllException {
         return userService.fetchUserDtoByUsername(username);
     }
-    // REQ => <url>/user/showall?role=USER&page=1&limit=10
-    // OR => <url>/user/showall
+
+
     @GetMapping("/showall")
     @ResponseBody
     public ResponseEntity<Page<UserDto>> showAllAndPaginationUser(

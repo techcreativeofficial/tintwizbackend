@@ -1,10 +1,12 @@
 package com.example.TintWiz.service;
 
+import com.example.TintWiz.dto.AuthResponse;
 import com.example.TintWiz.dto.ChangePassword;
 import com.example.TintWiz.dto.ChangeUsername;
 import com.example.TintWiz.dto.UserDto;
 import com.example.TintWiz.entity.User;
 import com.example.TintWiz.exception.AllException;
+import com.example.TintWiz.jwt.JwtUtil;
 import com.example.TintWiz.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +16,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -28,6 +33,9 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
 
     public long getTotalUsers() {
         log.info("Inside getTotalUsers");
@@ -39,10 +47,14 @@ public class UserService {
             log.info("Inside Create Account {}", userDto);
             User user = new User();
 
+            user.setEmail(userDto.getEmail());
             user.setUsername(userDto.getUsername());
+            user.setFullname(userDto.getFullname());
             String rawPassword = userDto.getPassword();
-//            String encodedPassword = passwordEncoder.encode(rawPassword);
-            user.setPassword(user.getPassword());
+            String encodedPassword = passwordEncoder.encode(rawPassword);
+            user.setPassword(encodedPassword);
+            user.setPhone_number(userDto.getPhone_number());
+            user.setProfile_picture(userDto.getProfile_picture());
             user.setRole(userDto.getRole());
             user.setStatus(true);
             user.setCreated(Instant.now());
@@ -65,23 +77,26 @@ public class UserService {
             }
             User user = optionalUser.get();
 
+            user.setEmail(userDto.getEmail());
             user.setUsername(userDto.getUsername());
-
+            user.setFullname(userDto.getFullname());
             String rawPassword = userDto.getPassword();
             if (rawPassword == null || rawPassword.isEmpty()) {
                 rawPassword = user.getPassword();
             } else {
-//                String encodedPassword = passwordEncoder.encode(rawPassword);
-                user.setPassword(userDto.getPassword());
+                String encodedPassword = passwordEncoder.encode(rawPassword);
+                user.setPassword(encodedPassword);
             }
-
+            user.setPhone_number(userDto.getPhone_number());
+            user.setProfile_picture(userDto.getProfile_picture());
             user.setRole(userDto.getRole());
-            user.setStatus(userDto.getStatus());;
+            user.setStatus(userDto.getStatus());
+            ;
 
             userRepository.save(user);
             return ResponseEntity.ok("User edited successfully");
 
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("Error edited user", e);
             return ResponseEntity.status(500).body("Error edited user");
         }
@@ -90,7 +105,7 @@ public class UserService {
     public ResponseEntity<Object> hapusUser(Long id) {
         try {
             log.info("Inside hapus User");
-            Optional<User> optionalUser  = userRepository.findById(id);
+            Optional<User> optionalUser = userRepository.findById(id);
 
             if (optionalUser.isPresent()) {
                 userRepository.deleteById(id);
@@ -104,10 +119,54 @@ public class UserService {
         }
     }
 
-    private boolean isValidEmail(String email) {
-        return email.contains("@");
+    public ResponseEntity<Object> login(AuthResponse authResponse) {
+        try {
+            log.info("Inside login");
+
+            String identifier = authResponse.getUsername();
+            String password = authResponse.getPassword();
+
+            Optional<User> userOpt;
+
+            if (isValidEmail(identifier)) {
+                userOpt = userRepository.findByEmail(identifier);
+            } else {
+                userOpt = userRepository.findByUsername(identifier);
+            }
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Collections.singletonMap("message",
+                                "Our system didn't find your username or email. Please contact Admin."));
+            }
+
+            User user = userOpt.get();
+            if (!user.getStatus()) {
+                return ResponseEntity.badRequest()
+                        .body(Collections.singletonMap("message",
+                                "Please ask Admin to activate your account."));
+            }
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            user.getUsername(),
+                            password));
+            String jwtToken = jwtUtil.generateToken(
+                    user.getUsername(),
+                    user.getRole(),
+                    user.getIduser());
+            return ResponseEntity.ok().body(Collections.singletonMap("token", jwtToken));
+
+        } catch (Exception ex) {
+            log.error("Exception during login", ex);
+            return ResponseEntity.badRequest()
+                    .body(Collections.singletonMap("message",
+                            "Bad Credentials. Please check your username or password"));
+        }
     }
 
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[^@]+@[^@]+\\.[^@]+$");
+
+    }
 
     public UserDto mapUserToUserDto(User user) {
         UserDto userDto = new UserDto();
@@ -120,7 +179,7 @@ public class UserService {
 
         return userDto;
     }
-    
+
     public UserDto fetchUserDtoByIduser(Long id) throws AllException {
         log.info("Inside fetchUserDtoByIduser");
         User user = userRepository.findById(id)
@@ -129,37 +188,40 @@ public class UserService {
         return mapUserToUserDto(user);
     }
 
-//    public ResponseEntity<Object> changePasswords(ChangePassword changePassword) {
-//        try {
-//            log.info("Change password");
-//            log.info("Received request with payload: {}", changePassword);
-//
-//            Long id = changePassword.getId();
-//            if (id != null) {
-//                User user = userRepository.findByIduser(id);
-//                if (user != null) {
-//                    String oldPassword = changePassword.getOldpassword();
-//                    String newPassword = changePassword.getNewpassword();
-//                    if (passwordEncoder.matches(oldPassword, user.getPassword())) {
-//                        String encodedNewPassword = passwordEncoder.encode(newPassword);
-//                        user.setPassword(encodedNewPassword);
-//                        userRepository.save(user);
-//                        return ResponseEntity.ok(Collections.singletonMap("message", "Password updated successfully"));
-//                    } else {
-//                        return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Incorrect old password"));
-//                    }
-//                } else {
-//                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Collections.singletonMap("error", "User not found"));
-//                }
-//            } else {
-//                log.error("Token is null or empty");
-//                return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Token is null or empty"));
-//            }
-//        } catch (Exception ex) {
-//            log.error("An error occurred while changing the password", ex);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Collections.singletonMap("error", "An error occurred while changing the password"));
-//        }
-//    }
+    public ResponseEntity<Object> changePasswords(ChangePassword changePassword) {
+        try {
+            log.info("Change password");
+            log.info("Received request with payload: {}", changePassword);
+
+            Long id = changePassword.getId();
+            if (id != null) {
+                User user = userRepository.findByIduser(id);
+                if (user != null) {
+                    String oldPassword = changePassword.getOldpassword();
+                    String newPassword = changePassword.getNewpassword();
+                    if (passwordEncoder.matches(oldPassword, user.getPassword())) {
+                        String encodedNewPassword = passwordEncoder.encode(newPassword);
+                        user.setPassword(encodedNewPassword);
+                        userRepository.save(user);
+                        return ResponseEntity.ok(Collections.singletonMap("message", "Password updated successfully"));
+                    } else {
+                        return ResponseEntity.badRequest()
+                                .body(Collections.singletonMap("error", "Incorrect old password"));
+                    }
+                } else {
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(Collections.singletonMap("error", "User not found"));
+                }
+            } else {
+                log.error("Token is null or empty");
+                return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Token is null or empty"));
+            }
+        } catch (Exception ex) {
+            log.error("An error occurred while changing the password", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.singletonMap("error", "An error occurred while changing the password"));
+        }
+    }
 
     public ResponseEntity<Object> changeUsername(ChangeUsername changeUsername) {
         try {
@@ -177,10 +239,12 @@ public class UserService {
                         userRepository.save(user);
                         return ResponseEntity.ok(Collections.singletonMap("message", "Username updated successfully"));
                     } else {
-                        return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Incorrect old username"));
+                        return ResponseEntity.badRequest()
+                                .body(Collections.singletonMap("error", "Incorrect old username"));
                     }
                 } else {
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Collections.singletonMap("error", "User not found"));
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(Collections.singletonMap("error", "User not found"));
                 }
             } else {
                 log.error("Token is null or empty");
@@ -188,7 +252,8 @@ public class UserService {
             }
         } catch (Exception ex) {
             log.error("An error occurred while changing the username", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Collections.singletonMap("error", "An error occurred while changing the username"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.singletonMap("error", "An error occurred while changing the username"));
         }
     }
 
@@ -200,24 +265,34 @@ public class UserService {
         return mapUserToUserDto(user);
     }
 
-    public Page<UserDto> showAllAndPaginationUser(String role,String username, String order, int offset, int pageSize) {
+    public Page<UserDto> showAllAndPaginationUser(String role, String username, String order, int offset,
+            int pageSize) {
         log.info("Inside showAllAndPaginationUser");
-        Page<User>userPage;
+        Page<User> userPage;
         if (role != null && username != null) {
-            userPage = userRepository.findByUsernameAndRoleContainingIgnoreCase(username,role,PageRequest.of(offset - 1, pageSize,  "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
+            userPage = userRepository.findByUsernameAndRoleContainingIgnoreCase(username, role,
+                    PageRequest.of(offset - 1, pageSize,
+                            "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
         } else if (role != null) {
-            userPage = userRepository.findByRoleContainingIgnoreCase(role,PageRequest.of(offset - 1, pageSize,  "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
+            userPage = userRepository.findByRoleContainingIgnoreCase(role, PageRequest.of(offset - 1, pageSize,
+                    "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
         } else if (username != null) {
-            userPage = userRepository.findByUsernameContainingIgnoreCase(username,PageRequest.of(offset - 1, pageSize,  "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
+            userPage = userRepository.findByUsernameContainingIgnoreCase(username, PageRequest.of(offset - 1, pageSize,
+                    "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
         } else {
-            userPage = userRepository.findAll(PageRequest.of(offset - 1,pageSize, "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
+            userPage = userRepository.findAll(PageRequest.of(offset - 1, pageSize,
+                    "desc".equals(order) ? Sort.by("iduser").descending() : Sort.by("iduser").ascending()));
         }
-                List<UserDto> resultList = userPage.getContent().stream()
+        List<UserDto> resultList = userPage.getContent().stream()
                 .map(user -> {
                     UserDto userDto = new UserDto();
                     userDto.setIduser(user.getIduser());
+                    userDto.setEmail(user.getEmail());
                     userDto.setUsername(user.getUsername());
+                    userDto.setFullname(user.getFullname());
                     userDto.setPassword(user.getPassword());
+                    userDto.setPhone_number(user.getPhone_number());
+                    userDto.setProfile_picture(user.getProfile_picture());
                     userDto.setRole(user.getRole());
                     userDto.setStatus(user.getStatus());
                     userDto.setCreated(user.getCreated());
@@ -230,5 +305,3 @@ public class UserService {
     }
 
 }
-
-
